@@ -1,6 +1,5 @@
 document.getElementById("formularioRegistro").addEventListener("submit", async function (event) {
     event.preventDefault();
-    console.log("Aquí llego");
 
     const nombre = document.getElementById("nombre").value;
     const correo = document.getElementById("correo").value;
@@ -12,7 +11,6 @@ document.getElementById("formularioRegistro").addEventListener("submit", async f
     }
 
     await registrarUsuario(nombre, correo, contraseña);
-    console.log("Aquí llego");
 });
 
 function validarCorreo(correo) {
