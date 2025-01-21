@@ -108,4 +108,11 @@ io.on('connection', (socket) => {
         console.log(listaUsuarios);
     })
 
+    // Escuchar mensajes publicos del cliente y difundirlos
+    socket.on('mensajePublico', (msg) => {
+        console.log(msg);
+        // Reenviar el mensaje a todos los clientes
+        io.emit('mensajePublico', msg);
+    });
+
 });
