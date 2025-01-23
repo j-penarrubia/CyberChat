@@ -106,6 +106,7 @@ io.on('connection', (socket) => {
     socket.on('asignarUsuario', (user) => {
         listaUsuarios[user] = socket.id;
         console.log(listaUsuarios);
+        io.emit('actualizar lista', listaUsuarios);
     })
 
     // Escuchar mensajes publicos del cliente y difundirlos
@@ -113,6 +114,19 @@ io.on('connection', (socket) => {
         console.log(msg);
         // Reenviar el mensaje a todos los clientes
         io.emit('mensajePublico', msg);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Un cliente se ha desconectado:', socket.id);
+        for (const nombre in listaUsuarios) {
+            if (listaUsuarios[nombre] === socket.id) {
+                delete listaUsuarios[nombre];
+                break;
+            }
+        }
+        // Enviar lista actualizada de usuarios a todos
+        io.emit('actualizar lista', listaUsuarios);
+
     });
 
 });

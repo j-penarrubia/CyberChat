@@ -2,7 +2,7 @@ const socket = io();
 const form = document.getElementById('form');
 const input = document.getElementById('input');
 const chatPublico = document.getElementById('chat_publico');
-const userList = document.getElementById('userList');
+const listaUsuarios = document.getElementById('usuariosConectados');
 
 const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
     const [key, value] = cookie.split('=');
@@ -19,6 +19,14 @@ if (nombreUsuario) {
     // Puedes usar el nombre de usuario para conectar el socket, por ejemplo:
     socket.emit('asignarUsuario', nombreUsuario);
 }
+socket.on('actualizar lista', (lista) => {
+    listaUsuarios.innerHTML = "";
+    for (let nombre in lista) {
+        const li = document.createElement('li');
+        li.textContent = nombre;
+        listaUsuarios.appendChild(li);
+    };
+});
 
 // Escuchar mensajes del servidor
 socket.on('mensajePublico', (msg) => {
