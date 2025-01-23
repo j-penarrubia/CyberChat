@@ -72,7 +72,7 @@ app.post("/login", async (req, res) => {
 
             //Comprobamos la lista para ver si está conectado
             if (listaUsuarios[resultado.nombre]) {
-                res.status(401).json({ error: "Este usuario ya está conectado" });
+                return res.status(401).json({ error: "Este usuario ya está conectado" });
             }
 
             // Usuario encontrado en la base de datos y no conectado.
@@ -86,9 +86,15 @@ app.post("/login", async (req, res) => {
             //Aquí redirigimos a la página del chat, además hay que logearlo al server.io
 
         } else {
-            // Usuario no encontrado
-            res.status(401).json({ error: "Usuario o contraseña incorrectos" });
-            //Aquí colgamos un mensaje indicando el error
+            const existe = await usuario.findOne({ $or: [{ correo: user }, { nombre: user }] });
+            if (existe) {
+                res.status(401).json({ error: "Contraseña incorrecta" });
+                //Aquí colgamos un mensaje indicando el error
+            } else {
+                // Usuario no encontrado
+                res.status(401).json({ error: "Usuario no registrado" });
+                //Aquí colgamos un mensaje indicando el error
+            }
 
         }
 

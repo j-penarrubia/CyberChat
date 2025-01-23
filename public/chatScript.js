@@ -19,6 +19,7 @@ if (nombreUsuario) {
     // Puedes usar el nombre de usuario para conectar el socket, por ejemplo:
     socket.emit('asignarUsuario', nombreUsuario);
 }
+
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = "";
     for (let nombre in lista) {
@@ -32,7 +33,7 @@ socket.on('actualizar lista', (lista) => {
 socket.on('mensajePublico', (msg) => {
     const item = document.createElement('li');
     if (msg.emisor == nombreUsuario) {
-        console.log("ESte mensaje lo has enviado tu");
+        console.log("Este mensaje lo has enviado tu");
         //Aquí le daremos clase al elemento para diferenciar nuestro mensajes de los de los demás usuarios,
         //Utilizaremos item.classAdd o alguna movida así
     } else {
