@@ -122,6 +122,14 @@ io.on('connection', (socket) => {
         io.emit('mensajePublico', msg);
     });
 
+    //Reenviar Mensaje Privado
+    socket.on('mensajePrivado', (msg) => {
+        console.log(msg);
+        const receptor = listaUsuarios[msg.receptor];
+        //Podría funcionar
+        socket.to(receptor).emit('mensajePrivado', msg);
+    });
+
     socket.on('disconnect', () => {
         console.log('Un cliente se ha desconectado:', socket.id);
         for (const nombre in listaUsuarios) {
