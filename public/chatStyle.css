@@ -342,3 +342,11 @@ button:hover {
         padding: 10px 14px !important;
     }
 }
+
+.activo {
+    display: flex;
+}
+
+.oculto {
+    display: none;
+}

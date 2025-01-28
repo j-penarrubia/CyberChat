@@ -3,6 +3,9 @@ const form = document.getElementById('form');
 const input = document.getElementById('input');
 const chatPublico = document.getElementById('chat_publico');
 const listaUsuarios = document.getElementById('usuariosConectados');
+const ventanaPrincipal = document.getElementById('contenido-principal');
+const chatInput = document.getElementById('chat-input');
+var encabezado = document.getElementById("encabezado");
 
 const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
     const [key, value] = cookie.split('=');
@@ -26,10 +29,44 @@ socket.on('actualizar lista', (lista) => {
         if (nombre == nombreUsuario) { } else {
             const li = document.createElement('li');
             li.textContent = nombre;
+            li.addEventListener('click', (event) => {
+                event.preventDefault();
+                cambiarChat(nombre);
+            })
             listaUsuarios.appendChild(li);
         }
     };
 });
+
+function cambiarChat(nombre) {
+    document.querySelectorAll('.ventana-chat').forEach(ventana => {
+        ventana.classList.remove('activo');
+    });
+
+    document.querySelectorAll('.ventana-chat').forEach(ventana => {
+        ventana.classList.add('oculto');
+    });
+    console.log(nombre);
+
+    if (!document.querySelector(`.${nombre}`)) {
+        const nuevaVentana = document.createElement('div');
+        nuevaVentana.className = 'ventana-chat';
+        nuevaVentana.classList.add(`${nombre}`);
+        nuevaVentana.innerHTML =
+            `<div id="mensajes-chat">
+            <ul id="chat_privado"></ul>
+        </div>`;
+        nuevaVentana.classList.add('activo');
+        ventanaPrincipal.insertBefore(nuevaVentana, chatInput);
+    } else {
+        document.querySelector(`.${nombre}`).classList.remove('oculto');
+        document.querySelector(`.${nombre}`).classList.add('activo');
+    }
+
+    encabezado.innerText = `Chat privado con ${nombre}`;
+
+
+}
 
 // Escuchar mensajes del servidor
 socket.on('mensajePublico', (msg) => {
