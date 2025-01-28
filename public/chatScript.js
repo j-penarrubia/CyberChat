@@ -23,26 +23,61 @@ if (nombreUsuario) {
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = "";
     for (let nombre in lista) {
-        const li = document.createElement('li');
-        li.textContent = nombre;
-        listaUsuarios.appendChild(li);
+        if (nombre == nombreUsuario) { } else {
+            const li = document.createElement('li');
+            li.textContent = nombre;
+            listaUsuarios.appendChild(li);
+        }
     };
 });
 
 // Escuchar mensajes del servidor
 socket.on('mensajePublico', (msg) => {
     const item = document.createElement('li');
+    item.classList.add("mensaje");
     if (msg.emisor == nombreUsuario) {
         console.log("Este mensaje lo has enviado tu");
-        //Aquí le daremos clase al elemento para diferenciar nuestro mensajes de los de los demás usuarios,
-        //Utilizaremos item.classAdd o alguna movida así
+        item.classList.add("enviado");
     } else {
-        //En caso de no ser nuestro mensaje, le daremos otra clase y así los diferenciaremos
+        item.classList.add("recibido");
     }
-    item.textContent = msg.mensaje;
+
+    const avatar = document.createElement('div');
+    avatar.classList.add("avatar");
+    avatar.textContent = msg.emisor.charAt(0).toUpperCase();
+    item.appendChild(avatar);
+
+    const mensaje = document.createElement('div');
+    mensaje.classList.add("contenido-mensaje");
+
+    const encabezado = document.createElement('div');
+    encabezado.classList.add("encabezado-mensaje");
+
+    const usuario = document.createElement('span');
+    usuario.classList.add("usuario-mensaje");
+    usuario.textContent = msg.emisor;
+    encabezado.appendChild(usuario);
+    mensaje.appendChild(encabezado);
+
+    const texto = document.createElement("div");
+    texto.classList.add("texto-mensaje");
+    texto.innerText = msg.mensaje;
+    mensaje.appendChild(texto);
+
+    item.appendChild(mensaje)
+
     chatPublico.appendChild(item);
-    window.scrollTo(0, document.body.scrollHeight);
+    scrollToBottom();
 });
+
+function scrollToBottom() {
+    const chatWindow = document.querySelector('.ventana-chat');
+
+    chatWindow.scrollTo({
+        top: chatWindow.scrollHeight,
+        behavior: 'smooth'
+    });
+}
 
 //Enviar mensaje público
 form.addEventListener('submit', (event) => {
