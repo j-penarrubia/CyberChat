@@ -33,6 +33,15 @@ body {
     border-right: 1px solid #404040;
 }
 
+#volverChatPublico {
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+#volverChatPublico:hover {
+    color: blue;
+}
+
 #sidebar h3 {
     color: #7289da;
     margin-bottom: 15px;

@@ -7,6 +7,7 @@ const ventanaPrincipal = document.getElementById('contenido-principal');
 const chatInput = document.getElementById('chat-input');
 var encabezado = document.getElementById("encabezado");
 var destinatario;
+var botonChatPublico = document.getElementById("volverChatPublico");
 
 const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
     const [key, value] = cookie.split('=');
@@ -38,6 +39,23 @@ socket.on('actualizar lista', (lista) => {
         }
     };
 });
+
+function volverChatPublico() {
+    document.querySelectorAll('.ventana-chat').forEach(ventana => {
+        ventana.classList.remove('activo');
+    });
+    document.querySelectorAll('.ventana-chat').forEach(ventana => {
+        ventana.classList.add('oculto');
+    });
+    document.querySelector('.ventana-chat.publico').classList.remove('oculto');
+    document.querySelector('.ventana-chat.publico').classList.add('activo');
+
+    var botonEnviar = document.getElementById("form");
+    encabezado.innerText = `Chat Público`;
+
+    botonEnviar.removeEventListener('submit', enviarMensajePrivado);
+    botonEnviar.addEventListener('submit', enviarMensajePublico);
+}
 
 function cambiarChat(nombre) {
     document.querySelectorAll('.ventana-chat').forEach(ventana => {
@@ -230,3 +248,4 @@ function enviarMensajePrivado(event) {
 }
 
 form.addEventListener('submit', enviarMensajePublico);
+botonChatPublico.addEventListener("click", volverChatPublico);
