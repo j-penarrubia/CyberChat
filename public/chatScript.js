@@ -1,5 +1,5 @@
 const socket = io();
-const form = document.getElementById('form');
+var form = document.getElementById('form');
 const input = document.getElementById('input');
 const chatPublico = document.getElementById('chat_publico');
 const listaUsuarios = document.getElementById('usuariosConectados');
@@ -55,7 +55,7 @@ function cambiarChat(nombre) {
         nuevaVentana.classList.add(`${nombre}`);
         nuevaVentana.innerHTML =
             `<div id="mensajes-chat">
-                <ul id="chat_privado"></ul>
+                <ul class="chat_privado ${nombre}"></ul>
             </div>`;
         nuevaVentana.classList.add('activo');
         ventanaPrincipal.insertBefore(nuevaVentana, chatInput);
@@ -63,6 +63,10 @@ function cambiarChat(nombre) {
         document.querySelector(`.${nombre}`).classList.remove('oculto');
         document.querySelector(`.${nombre}`).classList.add('activo');
     }
+
+    var botonEnviar = document.getElementById("form");
+    botonEnviar.removeEventListener('submit', enviarMensajePublico);
+    botonEnviar.addEventListener('submit', enviarMensajePrivado);
 
     encabezado.innerText = `Chat privado con ${nombre}`;
     destinatario = nombre;
@@ -141,13 +145,13 @@ socket.on('mensajePrivado', (msg) => {
     texto.innerText = msg.mensaje;
     mensaje.appendChild(texto);
 
-    item.appendChild(mensaje)
+    item.appendChild(mensaje);
     //AQUÍ ESTÁ EL PROBLEMA, TENEMOS QUE VER DONDE COLGAR EL MENSAJE PRUEBALO A PARTI DE AQUÍ
-    
+
     if (msg.emisor == nombreUsuario) {
-        var chatPrivado = document.querySelector(msg.receptor);
+        var chatPrivado = document.querySelector(`.chat_privado.${msg.receptor}`);
     } else {
-        var chatPrivado = document.querySelector(msg.emisor);
+        var chatPrivado = document.querySelector(`.chat_privado.${msg.emisor}`);
     }
     chatPrivado.appendChild(item);
     scrollToBottom();
@@ -176,7 +180,40 @@ function enviarMensajePrivado(event) {
     event.preventDefault();
     if (input.value) {
         socket.emit('mensajePrivado', { emisor: nombreUsuario, mensaje: input.value, receptor: destinatario });
+
+        //Pintar el mensaje en nuestro chat
+        const item = document.createElement('li');
+        item.classList.add("mensaje");
+        item.classList.add("enviado");
+        const avatar = document.createElement('div');
+        avatar.classList.add("avatar");
+        avatar.textContent = nombreUsuario.charAt(0).toUpperCase();
+        item.appendChild(avatar);
+
+        const mensaje = document.createElement('div');
+        mensaje.classList.add("contenido-mensaje");
+
+        const encabezado = document.createElement('div');
+        encabezado.classList.add("encabezado-mensaje");
+
+        const usuario = document.createElement('span');
+        usuario.classList.add("usuario-mensaje");
+        usuario.textContent = "Tú";
+        encabezado.appendChild(usuario);
+        mensaje.appendChild(encabezado);
+
+        const texto = document.createElement("div");
+        texto.classList.add("texto-mensaje");
+        texto.innerText = input.value;
+        mensaje.appendChild(texto);
+
+        item.appendChild(mensaje)
+
+        var chatPrivado = document.querySelector(`.chat_privado.${destinatario}`);
+        chatPrivado.appendChild(item);
+
         input.value = '';
+        scrollToBottom();
     }
 }
 

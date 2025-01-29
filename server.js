@@ -126,8 +126,10 @@ io.on('connection', (socket) => {
     socket.on('mensajePrivado', (msg) => {
         console.log(msg);
         const receptor = listaUsuarios[msg.receptor];
+        console.log(receptor);
         //Podría funcionar
         socket.to(receptor).emit('mensajePrivado', msg);
+        console.log(msg.emisor);
     });
 
     socket.on('disconnect', () => {
