@@ -110,18 +110,16 @@ socket.on('mensajePublico', (msg) => {
     item.appendChild(mensaje)
 
     chatPublico.appendChild(item);
-    scrollToBottom();
+    scrollToBottom("publico");
 });
 
+// Escuchar mensajes privados del servidor
 socket.on('mensajePrivado', (msg) => {
+
+    //Primero se crea el mensaje
     const item = document.createElement('li');
     item.classList.add("mensaje");
-    if (msg.emisor == nombreUsuario) {
-        console.log("Este mensaje lo has enviado tu");
-        item.classList.add("enviado");
-    } else {
-        item.classList.add("recibido");
-    }
+    item.classList.add("recibido");
 
     const avatar = document.createElement('div');
     avatar.classList.add("avatar");
@@ -146,19 +144,33 @@ socket.on('mensajePrivado', (msg) => {
     mensaje.appendChild(texto);
 
     item.appendChild(mensaje);
-    //AQUÍ ESTÁ EL PROBLEMA, TENEMOS QUE VER DONDE COLGAR EL MENSAJE PRUEBALO A PARTI DE AQUÍ
 
-    if (msg.emisor == nombreUsuario) {
-        var chatPrivado = document.querySelector(`.chat_privado.${msg.receptor}`);
-    } else {
-        var chatPrivado = document.querySelector(`.chat_privado.${msg.emisor}`);
+    //Después comprobamos si tenemos ya creada la parte del chat que debería almacenar los mensajes, pero la creamos sin clase activo
+    if (!document.querySelector(`.chat_privado.${msg.emisor}`)) {
+        const nuevaVentana = document.createElement('div');
+        nuevaVentana.className = 'ventana-chat';
+        nuevaVentana.classList.add("oculto");
+        nuevaVentana.classList.add(`${msg.emisor}`);
+        nuevaVentana.innerHTML =
+            `<div id="mensajes-chat">
+                    <ul class="chat_privado ${msg.emisor}"></ul>
+            </div>`;
+        ventanaPrincipal.insertBefore(nuevaVentana, chatInput);
     }
+    var chatPrivado = document.querySelector(`.chat_privado.${msg.emisor}`);
+
     chatPrivado.appendChild(item);
-    scrollToBottom();
+    if (document.querySelector(`.ventana-chat.${msg.emisor}.activo`)) {
+        const ventana = (`${msg.emisor}.activo`);
+        console.log(ventana);
+        scrollToBottom(ventana);
+    }
+
 });
 
-function scrollToBottom() {
-    const chatWindow = document.querySelector('.ventana-chat');
+function scrollToBottom(ventana) {
+    const chatWindow = document.querySelector(`.ventana-chat.${ventana}`);
+    console.log(ventana);
 
     chatWindow.scrollTo({
         top: chatWindow.scrollHeight,
@@ -213,7 +225,7 @@ function enviarMensajePrivado(event) {
         chatPrivado.appendChild(item);
 
         input.value = '';
-        scrollToBottom();
+        scrollToBottom(`${destinatario}`);
     }
 }
 
