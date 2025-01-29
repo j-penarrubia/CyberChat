@@ -116,6 +116,30 @@ body {
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
 }
 
+.chat_privado li {
+    margin-bottom: 15px;
+    padding: 12px 15px;
+    background-color: #404040;
+    border-radius: 8px;
+    max-width: 70%;
+    word-break: break-word;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.chat_privado li.recibido {
+    margin-right: auto;
+    background-color: #404040;
+    border-radius: 15px 15px 15px 5px;
+}
+
+.chat_privado li.enviado {
+    margin-left: auto;
+    background-color: #7289da;
+    border-radius: 15px 15px 5px 15px;
+    color: #ffffff;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
 /* Mantener la max-width original pero ajustar para alineación */
 #chat_publico li {
     max-width: 70%;
