@@ -37,7 +37,7 @@ body {
     display: block;
     width: 100%;
     padding: 12px;
-    background-color: #222;
+    background-color: #333;
     /* Oscuro para encajar con el sidebar */
     color: #fff;
     /* Texto blanco para contraste */
@@ -51,8 +51,7 @@ body {
 }
 
 #volverChatPublico:hover {
-    background-color: #333;
-    
+    background-color: #4d4d4d;
 }
 
 #volverChatPublico:active {
@@ -73,7 +72,7 @@ body {
 #usuariosConectados li {
     padding: 8px 12px;
     margin: 5px 0;
-    background-color: #404040;
+    background-color: #333;
     border-radius: 5px;
     font-size: 0.9rem;
     transition: background-color 0.3s;
@@ -401,4 +400,8 @@ button:hover {
 
 .oculto {
     display: none;
+}
+
+.actual {
+    background-color: #4d4d4d !important;
 }

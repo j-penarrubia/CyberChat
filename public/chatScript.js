@@ -41,6 +41,15 @@ socket.on('actualizar lista', (lista) => {
 });
 
 function volverChatPublico() {
+    const usuarios = listaUsuarios.children; // Obtiene todos los hijos directos
+
+    // Iterar sobre los hijos y quitar la clase 'actual'
+    for (let usuario of usuarios) {
+        usuario.classList.remove("actual");
+    }
+    botonChatPublico.classList.add('actual');
+    botonChatPublico.innerText = "Chat Público";
+
     document.querySelectorAll('.ventana-chat').forEach(ventana => {
         ventana.classList.remove('activo');
     });
@@ -58,6 +67,19 @@ function volverChatPublico() {
 }
 
 function cambiarChat(nombre) {
+    botonChatPublico.classList.remove('actual');
+    botonChatPublico.innerText = "Volver al Chat Público";
+
+    const usuarios = listaUsuarios.children; // Obtiene todos los hijos directos
+
+    // Iterar sobre los hijos y quitar la clase 'activo'
+    for (let usuario of usuarios) {
+        if (usuario.innerText == nombre) {
+            usuario.classList.add("actual");
+        } else { usuario.classList.remove("actual"); }
+
+    }
+
     document.querySelectorAll('.ventana-chat').forEach(ventana => {
         ventana.classList.remove('activo');
     });
