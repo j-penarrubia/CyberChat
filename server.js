@@ -1,10 +1,15 @@
+//Importaciones generales
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const conexionDB = require("./database");
 const { usuario } = require("./models");
 const path = require("path");
+
+//Importamos el dotenv para poder acceder a variables de entorno
 require('dotenv').config();
+
+//Importaciones para encriptar y desencriptar contraseñas
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
