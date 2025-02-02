@@ -70,6 +70,11 @@ app.post("/login", async (req, res) => {
         const resultado = await usuario.findOne(criterioBusqueda);
         console.log(resultado);
 
+        //Resolución si no existe el usuario
+        if (!resultado) {
+            return res.status(401).json({ error: "Usuario inexistente" });
+        }
+
         //Ponemos como condicional para hacer la comprobación que las contraseñas coincidan
         if (await bcrypt.compare(password, resultado.contraseña)) {
 
@@ -93,12 +98,7 @@ app.post("/login", async (req, res) => {
             if (existe) {
                 res.status(401).json({ error: "Contraseña incorrecta" });
                 //Aquí colgamos un mensaje indicando el error
-            } else {
-                // Usuario no encontrado
-                res.status(401).json({ error: "Usuario no registrado" });
-                //Aquí colgamos un mensaje indicando el error
             }
-
         }
 
     } catch (error) {
