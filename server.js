@@ -4,6 +4,9 @@ const { Server } = require('socket.io');
 const conexionDB = require("./database");
 const { usuario } = require("./models");
 const path = require("path");
+require('dotenv').config();
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 app.use(express.json());
@@ -29,12 +32,15 @@ app.get("/redir_registro", (req, res) => {
 
 app.post("/registro", async (req, res) => {
     try {
-        const { nombre, correo, contraseña } = req.body;
+        var { nombre, correo, contraseña } = req.body;
 
         // Validar los datos recibidos
         if (!nombre || !correo || !contraseña) {
             return res.status(400).json({ error: "Todos los campos son obligatorios." });
         }
+
+        //Encriptar contraseña
+        contraseña = await bcrypt.hash(contraseña, saltRounds);
 
         // Crear una nueva instancia del usuario
         const nuevoUsuario = new usuario({ nombre, correo, contraseña });
@@ -59,16 +65,13 @@ app.post("/login", async (req, res) => {
     try {
         const { user, password } = req.body;
         console.log(user, password);
-        const criterioBusqueda = {
-            $and: [
-                { contraseña: password },
-                { $or: [{ correo: user }, { nombre: user }] }
-            ]
-        };
+
+        const criterioBusqueda = { $or: [{ correo: user }, { nombre: user }] };
         const resultado = await usuario.findOne(criterioBusqueda);
         console.log(resultado);
 
-        if (resultado) {
+        //Ponemos como condicional para hacer la comprobación que las contraseñas coincidan
+        if (await bcrypt.compare(password, resultado.contraseña)) {
 
             //Comprobamos la lista para ver si está conectado
             if (listaUsuarios[resultado.nombre]) {
