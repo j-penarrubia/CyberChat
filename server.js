@@ -1,5 +1,7 @@
 //Importaciones generales
 const express = require('express');
+//Importación de la session
+const session = require('express-session');
 const http = require('http');
 const { Server } = require('socket.io');
 const conexionDB = require("./database");
@@ -19,6 +21,16 @@ app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 const server = http.createServer(app);
 const io = new Server(server);
+
+app.use(session({
+    secret: process.env.SECRET,  // Clave segura de la variable de entorno
+    resave: false,               // No guardar la sesión si no hubo cambios
+    saveUninitialized: false,    // No guardar sesiones vacías
+    cookie: {
+
+        maxAge: 1000 * 60 * 60 * 24 // 1 día (en milisegundos)
+    }
+}));
 
 const PORT = 3000;
 server.listen(PORT, () => {
@@ -91,9 +103,10 @@ app.post("/login", async (req, res) => {
             // Usuario encontrado en la base de datos y no conectado.
             res.cookie('nombreUsuario', resultado.nombre, {
                 secure: false,   // Cambia a true si usas HTTPS
-                sameSite: 'Strict' // Protección CSRF
+                sameSite: 'Strict', // Protección CSRF
             });
 
+            req.session.usuario = resultado.nombre;
             res.status(200).json({ message: "Inicio de sesión exitoso", usuario: resultado });
 
             //Aquí redirigimos a la página del chat, además hay que logearlo al server.io
@@ -111,6 +124,28 @@ app.post("/login", async (req, res) => {
         res.status(500).json({ error: "Error interno del servidor" });
     }
 });
+
+//Cerrar Sesión
+app.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).send('Error al cerrar sesión.');
+        }
+        res.send('Sesión cerrada exitosamente.');
+    });
+});
+
+app.get('/chat', verificarAutenticacion, (req, res) => {
+    res.sendFile(path.join(__dirname, "/public/chat.html"));
+});
+
+function verificarAutenticacion(req, res, next) {
+    if (req.session.usuario) {
+        next(); // El usuario está autenticado, continúa con la siguiente función
+    } else {
+        res.status(401).send('Acceso denegado. Por favor inicia sesión.');
+    }
+}
 
 var listaUsuarios = {};
 

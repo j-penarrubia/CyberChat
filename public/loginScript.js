@@ -21,7 +21,7 @@ async function logearUsuario(user, password) {
         if (response.ok) {
             const data = await response.json();
             console.log(data.message);
-            window.location.href = "/chat.html";
+            window.location.href = "/chat";
             //Añadir un mensaje en el html aquí para indicar el resultado de la operación
 
             //Además, mostrar un cuadro que indique la redirección al chat
