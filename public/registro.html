@@ -5,21 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro</title>
+    <link rel="stylesheet" href="registro.css">
 </head>
 
 <body>
     <form id="formularioRegistro">
         <label for="nombre">Nombre de usuario:</label>
         <input type="text" id="nombre" name="nombre" required>
-        <br><br>
+        <br>
 
         <label for="correo">Correo electrónico:</label>
         <input type="email" id="correo" name="correo" required>
-        <br><br>
+        <br>
 
         <label for="contraseña">Contraseña:</label>
-        <input type="password" id="contraseña" name="contraseña" required>
-        <br><br>
+        <input type="password" id="password" name="contraseña" required>
+        <div class="mostrar-contraseña">
+            <input type="checkbox" id="mostrar" name="mostrar">
+            <label for="mostrar">Mostrar Contraseña</label>
+        </div>
+        <br>
 
         <button type="submit">Registrar</button>
         <a href="/">Volver al inicio de sesión</a>

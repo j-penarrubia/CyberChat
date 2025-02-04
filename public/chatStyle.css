@@ -410,3 +410,45 @@ button:hover {
 .actual {
     background-color: #4d4d4d !important;
 }
+
+/* Estilos para el contenedor del perfil del usuario */
+#perfil-usuario {
+    display: flex;
+    align-items: center;
+    padding-bottom: 5%;
+    border-bottom: 1px solid #444;
+    justify-content: justify;
+    margin: 10px;
+}
+
+/* Estilo para el avatar */
+#avatar-usuario {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    /* Hace el avatar circular */
+    margin-right: 15px;
+    /* Espacio entre el avatar y el nombre */
+    border: 2px solid #555;
+    /* Borde alrededor del avatar */
+}
+
+/* Estilo para el nombre del usuario */
+#nombre-usuario {
+    color: #fff;
+    /* Texto blanco */
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    /* Eliminar márgenes extra */
+}
+
+.icono-tres-puntos {
+    margin-left: auto;
+    font-size: 30px;
+    cursor: pointer;
+    color: #fff;
+    justify-content: right;
+    /* Empuja el icono hacia la derecha */
+    align-items: right;
+}

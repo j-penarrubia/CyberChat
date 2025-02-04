@@ -5,17 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <link rel="stylesheet" href="index.css">
 </head>
 
 <body>
     <form id="formularioLogin">
         <label for="user">Correo electrónico o usuario:</label>
         <input type="text" id="user" name="user" required>
-        <br><br>
+        <br>
         <label for="password">Contraseña:</label>
         <input type="password" id="password" name="password" required>
+        <div class="mostrar-contraseña">
+            <input type="checkbox" id="mostrar" name="mostrar">
+            <label for="mostrar">Mostrar Contraseña</label>
+        </div>
         <br><br>
-        <button type="submit">Ingresar</button>
+        <button type="submit">Iniciar Sesión</button>
         <a href="/redir_registro" rel="noopener noreferrer">Registrarse</a>
     </form>
     <script src="loginScript.js"></script>

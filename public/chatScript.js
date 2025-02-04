@@ -25,6 +25,12 @@ if (nombreUsuario) {
     socket.emit('asignarUsuario', nombreUsuario);
 }
 
+document.addEventListener("DOMContentLoaded", (event) => {
+    document.getElementById("nombre-usuario").innerText = nombreUsuario[0].toUpperCase() + nombreUsuario.slice(1);
+});
+
+
+
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = "";
     for (let nombre in lista) {

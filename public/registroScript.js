@@ -18,6 +18,14 @@ function validarCorreo(correo) {
     return regex.test(correo);
 }
 
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById('mostrar').addEventListener('change', function () {
+        var passwordInput = document.getElementById('password');
+        passwordInput.type = this.checked ? 'text' : 'password';
+        passwordInput.focus();
+    });
+});
+
 async function registrarUsuario(nombre, correo, contraseña) {
     try {
         const response = await fetch("/registro", {
