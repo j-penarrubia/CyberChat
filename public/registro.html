@@ -10,25 +10,34 @@
 
 <body>
     <form id="formularioRegistro">
-        <label for="nombre">Nombre de usuario:</label>
-        <input type="text" id="nombre" name="nombre" required>
-        <br>
+        <h1>REGISTRO</h2>
+            <hr>
+            <label for="nombre">Nombre de usuario:</label>
+            <input type="text" id="nombre" name="nombre" required>
+            <p> </p>
 
-        <label for="correo">Correo electrónico:</label>
-        <input type="email" id="correo" name="correo" required>
-        <br>
+            <label for="correo">Correo electrónico:</label>
+            <input type="email" id="correo" name="correo" required>
+            <p> </p>
 
-        <label for="contraseña">Contraseña:</label>
-        <input type="password" id="password" name="contraseña" required>
-        <div class="mostrar-contraseña">
-            <input type="checkbox" id="mostrar" name="mostrar">
-            <label for="mostrar">Mostrar Contraseña</label>
-        </div>
-        <br>
+            <label for="contraseña">Contraseña:</label>
+            <input type="password" id="password" name="contraseña" required>
+            <div class="mostrar-contraseña">
+                <input type="checkbox" id="mostrar" name="mostrar">
+                <label for="mostrar">Mostrar Contraseña</label>
+            </div>
+            <br><br>
 
-        <button type="submit">Registrar</button>
-        <a href="/">Volver al inicio de sesión</a>
+            <button type="submit">Registrar</button>
+            <a href="/">Volver al inicio de sesión</a>
     </form>
+
+    <div class="modal" id="loadingModal">
+        <div class="modal-content">
+            <h3>Registro exitoso, redirigiendo a la página de inicio de sesión...</h3>
+            <div class="spinner"></div>
+        </div>
+    </div>
     <script src="registroScript.js"></script>
 </body>
 

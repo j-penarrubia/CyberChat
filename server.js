@@ -1,12 +1,15 @@
 //Importaciones generales
 const express = require('express');
-//Importación de la session
-const session = require('express-session');
+
 const http = require('http');
 const { Server } = require('socket.io');
 const conexionDB = require("./database");
+//Importación del modelo de usuario para MongoDB
 const { usuario } = require("./models");
 const path = require("path");
+
+//Importación de la session
+const session = require('express-session');
 
 //Importamos el dotenv para poder acceder a variables de entorno
 require('dotenv').config();

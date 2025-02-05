@@ -21,9 +21,6 @@ document.addEventListener("DOMContentLoaded", function () {
 async function logearUsuario(user, password) {
     try {
         console.log(user, password);
-        let modal = document.getElementById('loadingModal');
-        modal.style.display = 'flex';
-        modal = "";
         const response = await fetch("/login", {
             method: "POST",
             headers: {
@@ -34,6 +31,8 @@ async function logearUsuario(user, password) {
 
         if (response.ok) {
             const data = await response.json();
+            let modal = document.getElementById('loadingModal');
+            modal.style.display = 'flex';
             console.log(data.message);
             setTimeout(() => {
                 window.location.href = '/chat';

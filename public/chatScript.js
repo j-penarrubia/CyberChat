@@ -56,9 +56,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     });
 });
 
-
-
-
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = "";
     for (let nombre in lista) {
@@ -106,12 +103,15 @@ function cambiarChat(nombre) {
 
     const usuarios = listaUsuarios.children; // Obtiene todos los hijos directos
 
-    // Iterar sobre los hijos y quitar la clase 'activo'
+    // Iterar sobre los hijos y quitar la clase 'actual'
     for (let usuario of usuarios) {
         if (usuario.innerText == nombre) {
             usuario.classList.add("actual");
+            var icono = usuario.querySelector('i');
+            if (icono) {
+                icono.remove();
+            }
         } else { usuario.classList.remove("actual"); }
-
     }
 
     document.querySelectorAll('.ventana-chat').forEach(ventana => {
@@ -134,8 +134,9 @@ function cambiarChat(nombre) {
         nuevaVentana.classList.add('activo');
         ventanaPrincipal.insertBefore(nuevaVentana, chatInput);
     } else {
-        document.querySelector(`.${nombre}`).classList.remove('oculto');
-        document.querySelector(`.${nombre}`).classList.add('activo');
+        var elemento = document.querySelector(`.${nombre}`);
+        elemento.classList.remove('oculto');
+        elemento.classList.add('activo');
     }
 
     var botonEnviar = document.getElementById("form");
@@ -144,7 +145,6 @@ function cambiarChat(nombre) {
 
     encabezado.innerText = `Chat privado con ${nombre}`;
     destinatario = nombre;
-
 
 }
 
@@ -232,6 +232,24 @@ socket.on('mensajePrivado', (msg) => {
         ventanaPrincipal.insertBefore(nuevaVentana, chatInput);
     }
     var chatPrivado = document.querySelector(`.chat_privado.${msg.emisor}`);
+
+    var usuarios = listaUsuarios.querySelectorAll('li');
+    usuarios.forEach(function (li) {
+        console.log(li);
+        // Comparamos el contenido (puedes ajustar trim() o el método de comparación según necesites)
+        if (li.textContent.trim() == msg.emisor) {
+            console.log("Aquí llego");
+            if (!li.classList.contains('actual')) {
+                console.log("Aquí también");
+                if (!li.querySelector('i')) {
+                    var icono = document.createElement('i');
+                    icono.classList.add("far", "fa-comment");
+                    li.appendChild(icono);
+                }
+            }
+        }
+    });
+
 
     chatPrivado.appendChild(item);
     if (document.querySelector(`.ventana-chat.${msg.emisor}.activo`)) {
