@@ -25,9 +25,37 @@ if (nombreUsuario) {
     socket.emit('asignarUsuario', nombreUsuario);
 }
 
+//Todo lo que necesito usar desde un principio, esperando a que cargue el DOM
 document.addEventListener("DOMContentLoaded", (event) => {
+
+    form.addEventListener('submit', enviarMensajePublico);
+    botonChatPublico.addEventListener("click", volverChatPublico);
+
     document.getElementById("nombre-usuario").innerText = nombreUsuario[0].toUpperCase() + nombreUsuario.slice(1);
+
+    document.querySelector('.icono-tres-puntos').addEventListener('click', function (event) {
+        event.stopPropagation(); // Evita que el clic cierre el menú inmediatamente
+        const menu = document.querySelector('.menu-content');
+        const icon = event.target;
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        icon.classList.toggle('active');
+    });
+
+    // Cierra el menú si se hace clic fuera de él
+    window.addEventListener('click', function (event) {
+        document.querySelector('.icono-tres-puntos').classList.remove('active');
+        if (!event.target.matches('.icono-tres-puntos')) {
+            const dropdowns = document.querySelectorAll('.menu-content');
+            dropdowns.forEach(dropdown => {
+                if (dropdown.style.display === 'block') {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+        }
+    });
 });
+
 
 
 
@@ -275,5 +303,30 @@ function enviarMensajePrivado(event) {
     }
 }
 
-form.addEventListener('submit', enviarMensajePublico);
-botonChatPublico.addEventListener("click", volverChatPublico);
+async function cerrarSesion(event) {
+    event.preventDefault();
+    try {
+        const response = await fetch("/logout", {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const modal = document.getElementById('loadingModal');
+        modal.style.display = 'flex';
+
+        if (response.ok) {
+            console.log("Sesión cerrada correctamente, redirigiendo al login");
+        } else {
+            throw new Error("Error al cerrar sesión");
+        }
+        console.log(response);
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 3000);
+
+    } catch (error) {
+        console.log("Error al cerrar sesión", error);
+    } finally {
+        modal.style.display = 'none';
+    }
+}

@@ -15,7 +15,19 @@
             <div id="perfil-usuario">
                 <img id="avatar-usuario" src="./assets/img/avatar.jpg" alt="Avatar del usuario">
                 <h4 id="nombre-usuario"></h4>
-                <span class="icono-tres-puntos">&#8942;</span>
+                <div class="menu-container">
+                    <span class="icono-tres-puntos">&#8942;</span>
+                    <div class="menu-content">
+                        <a href="#" onclick="cerrarSesion(event)">Cerrar sesión</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal" id="loadingModal">
+                <div class="modal-content">
+                    <h3>Cerrando sesión, por favor espera...</h3>
+                    <div class="spinner"></div>
+                </div>
             </div>
 
             <h2 id="volverChatPublico" class="actual">Chat Público</h2><br>

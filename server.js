@@ -129,6 +129,7 @@ app.post("/login", async (req, res) => {
 app.post('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) {
+            console.log(err);
             return res.status(500).send('Error al cerrar sesión.');
         }
         res.send('Sesión cerrada exitosamente.');

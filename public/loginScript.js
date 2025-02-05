@@ -21,6 +21,9 @@ document.addEventListener("DOMContentLoaded", function () {
 async function logearUsuario(user, password) {
     try {
         console.log(user, password);
+        let modal = document.getElementById('loadingModal');
+        modal.style.display = 'flex';
+        modal = "";
         const response = await fetch("/login", {
             method: "POST",
             headers: {
@@ -32,10 +35,9 @@ async function logearUsuario(user, password) {
         if (response.ok) {
             const data = await response.json();
             console.log(data.message);
-            window.location.href = "/chat";
-            //Añadir un mensaje en el html aquí para indicar el resultado de la operación
-
-            //Además, mostrar un cuadro que indique la redirección al chat
+            setTimeout(() => {
+                window.location.href = '/chat';
+            }, 3000);
         } else {
             const error = await response.json();
             console.error("Error:", error.error);
@@ -57,5 +59,11 @@ async function logearUsuario(user, password) {
         }
     } catch (error) {
         console.error("Houston, tenemos un problema:", error);
+    } finally {
+        let modal = document.getElementById('loadingModal');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 3000);
+
     }
 }
