@@ -112,12 +112,8 @@ p {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 }
 
-.modal-content p {
-    color: #ffffff;
-    /* Texto blanco */
-    font-size: 16px;
-    margin-bottom: 20px;
-    /* Espacio entre el texto y el spinner */
+.modal-content h3 {
+    color: #7289da;
 }
 
 .spinner {
