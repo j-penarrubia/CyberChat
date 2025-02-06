@@ -89,6 +89,13 @@ p {
     margin-top: 2px;
     margin-bottom: 8px;
 }
+.chorrada {
+    color: white;
+    font-size: 14px;
+    margin-top: 2px;
+    margin-bottom: 8px;
+    justify-content: space-between;
+}
 
 /*Estilos para la ventana modal*/
 .modal {
