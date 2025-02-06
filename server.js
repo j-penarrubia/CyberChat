@@ -30,7 +30,6 @@ app.use(session({
     resave: false,               // No guardar la sesión si no hubo cambios
     saveUninitialized: false,    // No guardar sesiones vacías
     cookie: {
-
         maxAge: 1000 * 60 * 60 * 24 // 1 día (en milisegundos)
     }
 }));
@@ -105,7 +104,7 @@ app.post("/login", async (req, res) => {
 
             // Usuario encontrado en la base de datos y no conectado.
             res.cookie('nombreUsuario', resultado.nombre, {
-                secure: false,   // Cambia a true si usas HTTPS
+                secure: true,   // Cambia a true si usas HTTPS
                 sameSite: 'Strict', // Protección CSRF
             });
 
