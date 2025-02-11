@@ -25,6 +25,19 @@ body {
     box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
 }
 
+@media (max-width: 600px) {
+    #chat-container {
+        max-width: 100%;
+        /* Ocupa el 100% de la pantalla */
+        margin: 0;
+        /* Sin márgenes */
+        border-radius: 0;
+        /* Opcional: quitar bordes redondeados si se desea */
+        /* Si quieres quitar la sombra, puedes agregar: */
+         box-shadow: none; */
+    }
+}
+
 /* Sidebar */
 #sidebar {
     width: 250px;
