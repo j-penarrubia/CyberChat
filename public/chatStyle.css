@@ -34,7 +34,8 @@ body {
         border-radius: 0;
         /* Opcional: quitar bordes redondeados si se desea */
         /* Si quieres quitar la sombra, puedes agregar: */
-         box-shadow: none; */
+        box-shadow: none;
+        
     }
 }
 
