@@ -15,8 +15,8 @@ const botonChatPublico = document.getElementById('volverChatPublico');
 let destinatario = null;
 
 // Variables globales para la criptografía
-let misClaves;
-let miClavePublicaExportada;
+let keys;
+let publicKey;
 
 // ========================
 // USUARIO ACTUAL Y CRIPTOGRAFÍA
@@ -32,21 +32,20 @@ const nombreUsuario = cookies['nombreUsuario'] || '';
 async function inicializarCriptografia() {
     try {
         // Generar par de claves RSA-OAEP
-        misClaves = await window.crypto.subtle.generateKey(
+        keys = await window.crypto.subtle.generateKey(
             { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
             true,
             ["encrypt", "decrypt"]
         );
         
         // Exportar la clave pública a JWK para enviarla al servidor
-        miClavePublicaExportada = await window.crypto.subtle.exportKey("jwk", misClaves.publicKey);
+        publicKey = await window.crypto.subtle.exportKey("jwk", keys.publicKey);
         
         // Asignar usuario enviando también la clave pública
         socket.emit('asignarUsuario', { 
             nombre: nombreUsuario, 
-            publicKey: miClavePublicaExportada 
+            publicKey: publicKey 
         });
-        console.log("🔐 Claves E2EE generadas correctamente.");
     } catch (e) {
         console.error("Error al generar las claves criptográficas:", e);
         alert("Tu navegador no soporta cifrado de extremo a extremo.");
@@ -193,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = '';
-    // Ahora 'lista' será un array de strings (nombres) que nos envía el servidor modificado
     lista.forEach(nombre => {
         if (nombre === nombreUsuario) return;
 
@@ -273,7 +271,6 @@ function cambiarChat(nombre) {
     form.addEventListener('submit', enviarMensajePrivado);
 }
 
-// Recibir mensaje y desencriptar
 socket.on('mensajePrivado', async (msg) => {
     const emisorCSS = toCSS(msg.emisor);
     asegurarVentanaPrivada(emisorCSS);
@@ -285,7 +282,7 @@ socket.on('mensajePrivado', async (msg) => {
         const bufferCifrado = base64ToArrayBuffer(msg.mensaje);
         const bufferDescifrado = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" },
-            misClaves.privateKey,
+            keys.privateKey,
             bufferCifrado
         );
         
@@ -325,7 +322,6 @@ async function enviarMensajePrivado(event) {
     const textoPlano = input.value;
     const destinatarioCSS = toCSS(destinatario);
     
-    // Limpiar input visualmente para UX rápida
     input.value = ''; 
 
     try {

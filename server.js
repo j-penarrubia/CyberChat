@@ -1,17 +1,15 @@
-//Importaciones generales
+
 const express = require('express');
 
 const http = require('http');
 const { Server } = require('socket.io');
 const conexionDB = require("./database");
-//Importación del modelo de usuario para MongoDB
+
 const { usuario } = require("./models");
 const path = require("path");
 
-//Importación de la session
 const session = require('express-session');
 
-//Importamos el dotenv para poder acceder a variables de entorno
 require('dotenv').config();
 
 //Importaciones para encriptar y desencriptar contraseñas
@@ -26,11 +24,11 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(session({
-    secret: process.env.SECRET,  // Clave segura de la variable de entorno
-    resave: false,               // No guardar la sesión si no hubo cambios
-    saveUninitialized: false,    // No guardar sesiones vacías
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24 // 1 día (en milisegundos)
+        maxAge: 1000 * 60 * 60 * 24
     }
 }));
 
@@ -53,25 +51,18 @@ app.post("/registro", async (req, res) => {
     try {
         var { nombre, correo, contraseña } = req.body;
 
-        // Validar los datos recibidos
         if (!nombre || !correo || !contraseña) {
             return res.status(400).json({ error: "Todos los campos son obligatorios." });
         }
 
-        //Encriptar contraseña
         contraseña = await bcrypt.hash(contraseña, saltRounds);
 
-        // Crear una nueva instancia del usuario
         const nuevoUsuario = new usuario({ nombre, correo, contraseña });
-
-        // Guardar el usuario en la base de datos
         await nuevoUsuario.save();
 
-        // Responder al cliente
         res.status(201).json({ message: "Usuario registrado exitosamente." });
     } catch (error) {
         if (error.code === 11000) {
-            // Error por datos duplicados
             res.status(400).json({ error: "El nombre o correo ya están registrados." });
         } else {
             console.error("Error al registrar usuario:", error);
@@ -89,35 +80,28 @@ app.post("/login", async (req, res) => {
         const resultado = await usuario.findOne(criterioBusqueda);
         console.log(resultado);
 
-        //Resolución si no existe el usuario
         if (!resultado) {
-            return res.status(401).json({ error: "Usuario inexistente" });
+            return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
         }
 
-        //Ponemos como condicional para hacer la comprobación que las contraseñas coincidan
         if (await bcrypt.compare(password, resultado.contraseña)) {
 
-            //Comprobamos la lista para ver si está conectado
             if (listaUsuarios[resultado.nombre]) {
                 return res.status(401).json({ error: "Este usuario ya está conectado" });
             }
 
-            // Usuario encontrado en la base de datos y no conectado.
             res.cookie('nombreUsuario', resultado.nombre, {
-                secure: true,   // Cambia a true si usas HTTPS
-                sameSite: 'Strict', // Protección CSRF
+                secure: true,
+                sameSite: 'Strict',
             });
 
             req.session.usuario = resultado.nombre;
             res.status(200).json({ message: "Inicio de sesión exitoso", usuario: resultado });
 
-            //Aquí redirigimos a la página del chat, además hay que logearlo al server.io
-
         } else {
             const existe = await usuario.findOne({ $or: [{ correo: user }, { nombre: user }] });
             if (existe) {
-                res.status(401).json({ error: "Contraseña incorrecta" });
-                //Aquí colgamos un mensaje indicando el error
+                res.status(401).json({ error: "Usuario o contraseña incorrectos" });
             }
         }
 
@@ -144,39 +128,35 @@ app.get('/chat', verificarAutenticacion, (req, res) => {
 
 function verificarAutenticacion(req, res, next) {
     if (req.session.usuario) {
-        next(); // El usuario está autenticado, continúa con la siguiente función
+        next();
     } else {
         res.status(401).send('Acceso denegado. Por favor inicia sesión.');
     }
 }
 
-let listaUsuarios = {}; // Formato: { "Juan": { id: "socket123", publicKey: {...} } }
+let listaUsuarios = {};
 
 io.on('connection', (socket) => {
     console.log('Un cliente se ha conectado:', socket.id);
 
     // 1. Asignar usuario guardando su clave pública
     socket.on('asignarUsuario', (data) => {
-        // data viene del frontend como: { nombre: "Juan", publicKey: {...} }
         listaUsuarios[data.nombre] = {
             id: socket.id,
             publicKey: data.publicKey
         };
         console.log(`Usuario asignado: ${data.nombre} (Clave recibida)`);
         
-        // Enviamos a todos SOLO un array con los nombres (Object.keys)
         io.emit('actualizar lista', Object.keys(listaUsuarios));
     });
 
-    // 2. NUEVO: Evento para servir la clave pública de un usuario a otro
+    // 2. Evento para servir la clave pública de un usuario a otro
     socket.on('pedirClave', (nombreDestinatario, callback) => {
         const usuario = listaUsuarios[nombreDestinatario];
         
         if (usuario && usuario.publicKey) {
-            // El usuario existe y tiene clave, la devolvemos al frontend que la pidió
             callback({ success: true, publicKey: usuario.publicKey });
         } else {
-            // El usuario no existe o no generó clave
             callback({ success: false, error: "Usuario desconectado o sin clave pública." });
         }
     });
@@ -192,7 +172,7 @@ io.on('connection', (socket) => {
         
         if (receptorData) {
             socket.to(receptorData.id).emit('mensajePrivado', msg);
-            console.log(`Mensaje cifrado transferido de ${msg.emisor} a ${msg.receptor}. Mensaje encriptado: ${msg.mensaje}`);
+            console.log(`Mensaje transferido de ${msg.emisor} a ${msg.receptor}. Mensaje encriptado: ${msg.mensaje}`);
         } else {
             console.log(`Fallo al enviar: ${msg.receptor} no está conectado.`);
         }
@@ -210,7 +190,6 @@ io.on('connection', (socket) => {
             }
         }
         
-        // Enviamos la lista actualizada (array de nombres)
         io.emit('actualizar lista', Object.keys(listaUsuarios));
     });
 });
