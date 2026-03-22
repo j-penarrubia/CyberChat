@@ -14,8 +14,12 @@ const botonChatPublico = document.getElementById('volverChatPublico');
 
 let destinatario = null;
 
+// Variables globales para la criptografía
+let misClaves;
+let miClavePublicaExportada;
+
 // ========================
-// USUARIO ACTUAL (cookie)
+// USUARIO ACTUAL Y CRIPTOGRAFÍA
 // ========================
 const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
     const [key, value] = cookie.split('=');
@@ -25,28 +29,90 @@ const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
 
 const nombreUsuario = cookies['nombreUsuario'] || '';
 
+async function inicializarCriptografia() {
+    try {
+        // Generar par de claves RSA-OAEP
+        misClaves = await window.crypto.subtle.generateKey(
+            { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+            true,
+            ["encrypt", "decrypt"]
+        );
+        
+        // Exportar la clave pública a JWK para enviarla al servidor
+        miClavePublicaExportada = await window.crypto.subtle.exportKey("jwk", misClaves.publicKey);
+        
+        // Asignar usuario enviando también la clave pública
+        socket.emit('asignarUsuario', { 
+            nombre: nombreUsuario, 
+            publicKey: miClavePublicaExportada 
+        });
+        console.log("🔐 Claves E2EE generadas correctamente.");
+    } catch (e) {
+        console.error("Error al generar las claves criptográficas:", e);
+        alert("Tu navegador no soporta cifrado de extremo a extremo.");
+    }
+}
+
 if (nombreUsuario) {
-    socket.emit('asignarUsuario', nombreUsuario);
+    inicializarCriptografia();
 }
 
 // ========================
-// UTILIDADES
+// UTILIDADES E2EE
 // ========================
 
-/** Convierte un nombre a una cadena segura para usar como clase CSS */
+// Convertir ArrayBuffer a Base64
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
+// Convertir Base64 a ArrayBuffer
+function base64ToArrayBuffer(base64) {
+    const binary_string = window.atob(base64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// Pedir la clave pública de un usuario al servidor
+async function pedirClaveAlServidor(receptor) {
+    return new Promise((resolve, reject) => {
+        socket.emit('pedirClave', receptor, async (respuesta) => {
+            if (respuesta.success) {
+                try {
+                    const cryptoKey = await window.crypto.subtle.importKey(
+                        "jwk",
+                        respuesta.publicKey,
+                        { name: "RSA-OAEP", hash: "SHA-256" },
+                        false, 
+                        ["encrypt"] 
+                    );
+                    resolve(cryptoKey);
+                } catch (e) {
+                    reject("Error importando la clave del destinatario: " + e);
+                }
+            } else {
+                reject(respuesta.error);
+            }
+        });
+    });
+}
+
+// ========================
+// UTILIDADES UI
+// ========================
 function toCSS(nombre) {
-    return nombre
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9_-]/g, '');
+    return nombre.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-/**
- * Crea un elemento <li> de mensaje completo.
- * @param {string} emisor   - Nombre real del emisor
- * @param {string} texto    - Contenido del mensaje
- * @param {'enviado'|'recibido'} tipo
- * @param {string|null} etiqueta - Texto que muestra el encabezado (por defecto: emisor)
- */
 function crearMensaje(emisor, texto, tipo, etiqueta = null) {
     const item = document.createElement('li');
     item.classList.add('mensaje', tipo);
@@ -78,7 +144,6 @@ function crearMensaje(emisor, texto, tipo, etiqueta = null) {
     return item;
 }
 
-/** Crea la ventana de chat privado si aún no existe */
 function asegurarVentanaPrivada(css) {
     if (document.querySelector(`.ventana-chat.${css}`)) return;
 
@@ -91,7 +156,6 @@ function asegurarVentanaPrivada(css) {
     ventanaPrincipal.insertBefore(ventana, chatInput);
 }
 
-/** Hace scroll al fondo de una ventana por su clase CSS segura */
 function scrollToBottom(css) {
     const ventana = document.querySelector(`.ventana-chat.${css}`);
     if (ventana) {
@@ -129,8 +193,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = '';
-    for (const nombre in lista) {
-        if (nombre === nombreUsuario) continue;
+    // Ahora 'lista' será un array de strings (nombres) que nos envía el servidor modificado
+    lista.forEach(nombre => {
+        if (nombre === nombreUsuario) return;
 
         const li = document.createElement('li');
         li.textContent = nombre;
@@ -139,11 +204,11 @@ socket.on('actualizar lista', (lista) => {
             cambiarChat(nombre);
         });
         listaUsuarios.appendChild(li);
-    }
+    });
 });
 
 // ========================
-// CHAT PÚBLICO
+// CHAT PÚBLICO (No cifrado)
 // ========================
 function volverChatPublico() {
     Array.from(listaUsuarios.children).forEach(u => u.classList.remove('actual'));
@@ -178,7 +243,7 @@ function enviarMensajePublico(event) {
 }
 
 // ========================
-// CHAT PRIVADO
+// CHAT PRIVADO (Cifrado E2EE)
 // ========================
 function cambiarChat(nombre) {
     const css = toCSS(nombre);
@@ -188,20 +253,17 @@ function cambiarChat(nombre) {
     encabezado.innerText = `Chat privado con ${nombre}`;
     destinatario = nombre;
 
-    // Marcar usuario activo y quitar icono de notificación
     Array.from(listaUsuarios.children).forEach(li => {
         const esActual = li.textContent.trim() === nombre;
         li.classList.toggle('actual', esActual);
         if (esActual) li.querySelector('i')?.remove();
     });
 
-    // Ocultar todas las ventanas
     document.querySelectorAll('.ventana-chat').forEach(v => {
         v.classList.remove('activo');
         v.classList.add('oculto');
     });
 
-    // Crear ventana si no existe y activarla
     asegurarVentanaPrivada(css);
     const ventana = document.querySelector(`.ventana-chat.${css}`);
     ventana.classList.remove('oculto');
@@ -211,15 +273,33 @@ function cambiarChat(nombre) {
     form.addEventListener('submit', enviarMensajePrivado);
 }
 
-socket.on('mensajePrivado', (msg) => {
+// Recibir mensaje y desencriptar
+socket.on('mensajePrivado', async (msg) => {
     const emisorCSS = toCSS(msg.emisor);
-
     asegurarVentanaPrivada(emisorCSS);
 
-    const chatPrivado = document.querySelector(`.chat_privado.${emisorCSS}`);
-    chatPrivado.appendChild(crearMensaje(msg.emisor, msg.mensaje, 'recibido'));
+    let textoAMostrar = "";
 
-    // Icono de notificación si el chat no está activo
+    try {
+        // 1. Convertir y desencriptar
+        const bufferCifrado = base64ToArrayBuffer(msg.mensaje);
+        const bufferDescifrado = await window.crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            misClaves.privateKey,
+            bufferCifrado
+        );
+        
+        const decoder = new TextDecoder();
+        textoAMostrar = decoder.decode(bufferDescifrado);
+    } catch (error) {
+        console.error("No se pudo descifrar el mensaje:", error);
+        textoAMostrar = "⚠️ [Mensaje cifrado ilegible]";
+    }
+
+    // 2. Pintar mensaje en pantalla
+    const chatPrivado = document.querySelector(`.chat_privado.${emisorCSS}`);
+    chatPrivado.appendChild(crearMensaje(msg.emisor, textoAMostrar, 'recibido'));
+
     listaUsuarios.querySelectorAll('li').forEach(li => {
         if (
             li.textContent.trim() === msg.emisor &&
@@ -232,24 +312,51 @@ socket.on('mensajePrivado', (msg) => {
         }
     });
 
-    // Scroll solo si la ventana del emisor está activa
     if (document.querySelector(`.ventana-chat.${emisorCSS}.activo`)) {
         scrollToBottom(emisorCSS);
     }
 });
 
-function enviarMensajePrivado(event) {
+// Encriptar y enviar mensaje
+async function enviarMensajePrivado(event) {
     event.preventDefault();
     if (!input.value.trim()) return;
 
+    const textoPlano = input.value;
     const destinatarioCSS = toCSS(destinatario);
-    socket.emit('mensajePrivado', { emisor: nombreUsuario, mensaje: input.value, receptor: destinatario });
+    
+    // Limpiar input visualmente para UX rápida
+    input.value = ''; 
 
-    const chatPrivado = document.querySelector(`.chat_privado.${destinatarioCSS}`);
-    chatPrivado.appendChild(crearMensaje(nombreUsuario, input.value, 'enviado', 'Tú'));
+    try {
+        // 1. Obtener clave del receptor
+        const publicKeyReceptor = await pedirClaveAlServidor(destinatario);
+        
+        // 2. Cifrar
+        const encoder = new TextEncoder();
+        const dataCodificada = encoder.encode(textoPlano);
+        const mensajeCifradoBuffer = await window.crypto.subtle.encrypt(
+            { name: "RSA-OAEP" },
+            publicKeyReceptor, 
+            dataCodificada
+        );
+        
+        // 3. Enviar (pasando a base64 para que JSON.stringify no lo rompa)
+        socket.emit('mensajePrivado', { 
+            emisor: nombreUsuario, 
+            mensaje: arrayBufferToBase64(mensajeCifradoBuffer), 
+            receptor: destinatario 
+        });
 
-    input.value = '';
-    scrollToBottom(destinatarioCSS);
+        // 4. Pintar tu propio mensaje en tu pantalla (tú lo ves en claro, no cifrado)
+        const chatPrivado = document.querySelector(`.chat_privado.${destinatarioCSS}`);
+        chatPrivado.appendChild(crearMensaje(nombreUsuario, textoPlano, 'enviado', 'Tú'));
+        scrollToBottom(destinatarioCSS);
+
+    } catch (error) {
+        console.error("No se pudo enviar el mensaje cifrado:", error);
+        alert(`No se pudo cifrar el mensaje para ${destinatario}. El usuario no existe o no tiene clave asignada.`);
+    }
 }
 
 // ========================

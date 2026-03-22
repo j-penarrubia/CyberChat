@@ -150,45 +150,67 @@ function verificarAutenticacion(req, res, next) {
     }
 }
 
-var listaUsuarios = {};
+let listaUsuarios = {}; // Formato: { "Juan": { id: "socket123", publicKey: {...} } }
 
 io.on('connection', (socket) => {
     console.log('Un cliente se ha conectado:', socket.id);
 
-    socket.on('asignarUsuario', (user) => {
-        listaUsuarios[user] = socket.id;
-        console.log(listaUsuarios);
-        io.emit('actualizar lista', listaUsuarios);
-    })
+    // 1. Asignar usuario guardando su clave pública
+    socket.on('asignarUsuario', (data) => {
+        // data viene del frontend como: { nombre: "Juan", publicKey: {...} }
+        listaUsuarios[data.nombre] = {
+            id: socket.id,
+            publicKey: data.publicKey
+        };
+        console.log(`Usuario asignado: ${data.nombre} (Clave recibida)`);
+        
+        // Enviamos a todos SOLO un array con los nombres (Object.keys)
+        io.emit('actualizar lista', Object.keys(listaUsuarios));
+    });
 
-    // Escuchar mensajes publicos del cliente y difundirlos
+    // 2. NUEVO: Evento para servir la clave pública de un usuario a otro
+    socket.on('pedirClave', (nombreDestinatario, callback) => {
+        const usuario = listaUsuarios[nombreDestinatario];
+        
+        if (usuario && usuario.publicKey) {
+            // El usuario existe y tiene clave, la devolvemos al frontend que la pidió
+            callback({ success: true, publicKey: usuario.publicKey });
+        } else {
+            // El usuario no existe o no generó clave
+            callback({ success: false, error: "Usuario desconectado o sin clave pública." });
+        }
+    });
+
+    // 3. Escuchar mensajes públicos y difundirlos (Sin cifrar)
     socket.on('mensajePublico', (msg) => {
-        console.log(msg);
-        // Reenviar el mensaje a todos los clientes
         io.emit('mensajePublico', msg);
     });
 
-    //Reenviar Mensaje Privado
+    // 4. Reenviar Mensaje Privado (Cifrado E2EE)
     socket.on('mensajePrivado', (msg) => {
-        console.log(msg);
-        const receptor = listaUsuarios[msg.receptor];
-        console.log(receptor);
-        //Podría funcionar
-        socket.to(receptor).emit('mensajePrivado', msg);
-        console.log(msg.emisor);
+        const receptorData = listaUsuarios[msg.receptor];
+        
+        if (receptorData) {
+            socket.to(receptorData.id).emit('mensajePrivado', msg);
+            console.log(`Mensaje cifrado transferido de ${msg.emisor} a ${msg.receptor}. Mensaje encriptado: ${msg.mensaje}`);
+        } else {
+            console.log(`Fallo al enviar: ${msg.receptor} no está conectado.`);
+        }
     });
 
+    // 5. Desconexión de usuario
     socket.on('disconnect', () => {
         console.log('Un cliente se ha desconectado:', socket.id);
+        
         for (const nombre in listaUsuarios) {
-            if (listaUsuarios[nombre] === socket.id) {
+            if (listaUsuarios[nombre].id === socket.id) {
                 delete listaUsuarios[nombre];
+                console.log(`Usuario eliminado: ${nombre}`);
                 break;
             }
         }
-        // Enviar lista actualizada de usuarios a todos
-        io.emit('actualizar lista', listaUsuarios);
-
+        
+        // Enviamos la lista actualizada (array de nombres)
+        io.emit('actualizar lista', Object.keys(listaUsuarios));
     });
-
 });
