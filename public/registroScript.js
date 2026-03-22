@@ -39,7 +39,6 @@ async function registrarUsuario(nombre, correo, contraseña) {
         if (response.ok) {
             const data = await response.json();
             console.log(data.message);
-            //Añadir un mensaje en el html aquí para indicar el resultado de la operación
             let modal = document.getElementById('loadingModal');
             modal.style.display = 'flex';
             setTimeout(() => {
@@ -50,7 +49,6 @@ async function registrarUsuario(nombre, correo, contraseña) {
             console.error("Error:", error.error);
             var fallo = document.querySelector('p');
             fallo.innerText = error.error;
-            //Añadir un mensaje en el html aquí para indicar el resultado de la operación
         }
     } catch (error) {
         console.error("Error de red:", error);
