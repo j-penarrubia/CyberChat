@@ -17,9 +17,11 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
 const app = express();
+const mongoSanitize = require('express-mongo-sanitize');
 app.use(express.json());
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+app.use(mongoSanitize());
 const server = http.createServer(app);
 const io = new Server(server);
 
