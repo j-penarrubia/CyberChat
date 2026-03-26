@@ -1,3 +1,5 @@
+import { base64ToBuffer, derivarKEK } from './crypto-utils.js';
+
 document.getElementById("formularioLogin").addEventListener("submit", async function (event) {
     event.preventDefault();
 
@@ -20,49 +22,84 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function logearUsuario(user, password) {
     try {
-        console.log(user, password);
+        let modal = document.getElementById('loadingModal');
+        modal.style.display = 'flex';
+
         const response = await fetch("/login", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ user, password }),
         });
 
         if (response.ok) {
             const data = await response.json();
-            let modal = document.getElementById('loadingModal');
-            modal.style.display = 'flex';
-            console.log(data.message);
-            setTimeout(() => {
+            console.log(data.usuario);
+            
+            // --- INICIO MAGIA CRIPTOGRÁFICA ---
+            try {
+                // 1. Convertir Base64 a Buffers
+                const ivBuffer = base64ToBuffer(data.usuario.cryptoIv);
+                const saltBuffer = base64ToBuffer(data.usuario.cryptoSalt);
+                const encryptedKeyBuffer = base64ToBuffer(data.usuario.privateKey);
+
+                // 2. Derivar la misma KEK
+                const kek = await derivarKEK(password, saltBuffer);
+
+                // 3. Desenvolver (descifrar) la clave privada
+                const privateKey = await window.crypto.subtle.unwrapKey(
+                    "jwk",
+                    encryptedKeyBuffer,
+                    kek,
+                    { name: "AES-GCM", iv: ivBuffer },
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    false,
+                    ["decrypt", "unwrapKey"]
+                );
+
+                // 4. Guardar de forma segura en IndexedDB
+                await guardarClaveEnIndexedDB("miClavePrivada", privateKey);
+                
+                // Redirigir al chat
                 window.location.href = '/chat';
-            }, 3000);
+            } catch (cryptoError) {
+                console.error("Error al descifrar la clave. ¿Han manipulado los datos?:", cryptoError);
+                modal.style.display = 'none';
+                mostrarError("Error crítico de seguridad al cargar tus claves.");
+            }
+            // --- FIN MAGIA CRIPTOGRÁFICA ---
+
         } else {
             const error = await response.json();
-            console.error("Error:", error.error);
-            var fallo = document.createElement('p');
-            fallo.innerText = error.error;
-            console.log(fallo);
-
-            //Añadir un mensaje en el html aquí para indicar el resultado de la operación
-            if (error.error == "Usuario inexistente") {
-                const usuario = document.getElementById("user");
-                usuario.parentNode.insertBefore(fallo, usuario.nextSibling);
-            } else if (error.error == "Este usuario ya está conectado") {
-                const usuario = document.getElementById("user");
-                usuario.parentNode.insertBefore(fallo, usuario.nextSibling);
-            } else if (error.error == "Contraseña incorrecta") {
-                const contraseña = document.getElementById("password");
-                contraseña.parentNode.insertBefore(fallo, contraseña.nextSibling);
-            }
+            modal.style.display = 'none';
+            mostrarError(error.error);
         }
     } catch (error) {
-        console.error("Houston, tenemos un problema:", error);
-    } finally {
-        let modal = document.getElementById('loadingModal');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 3000);
-
+        console.error("Error de red:", error);
     }
+}
+
+// Promise para guardar en IndexedDB
+function guardarClaveEnIndexedDB(nombreClave, claveObj) {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("CyberChatSeguridad", 1);
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains("claves")) {
+                db.createObjectStore("claves");
+            }
+        };
+
+        request.onsuccess = function(event) {
+            const db = event.target.result;
+            const transaction = db.transaction(["claves"], "readwrite");
+            const store = transaction.objectStore("claves");
+            const putRequest = store.put(claveObj, nombreClave);
+
+            putRequest.onsuccess = () => resolve();
+            putRequest.onerror = () => reject(putRequest.error);
+        };
+
+        request.onerror = () => reject(request.error);
+    });
 }

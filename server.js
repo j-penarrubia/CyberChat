@@ -1,18 +1,13 @@
-
 const express = require('express');
-
 const http = require('http');
 const { Server } = require('socket.io');
 const conexionDB = require("./database");
-
 const { usuario } = require("./models");
 const path = require("path");
-
 const session = require('express-session');
-
 require('dotenv').config();
 
-//Importaciones para encriptar y desencriptar contraseñas
+// Importaciones para encriptar y desencriptar contraseñas
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
@@ -26,7 +21,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(session({
-    secret: process.env.SECRET,
+    secret: process.env.SECRET || 'secreto_desarrollo',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -49,17 +44,30 @@ app.get("/redir_registro", (req, res) => {
     res.sendFile(path.join(__dirname, "/public/registro.html"));
 });
 
+// ==========================================
+// REGISTRO
+// ==========================================
 app.post("/registro", async (req, res) => {
     try {
-        var { nombre, correo, contraseña } = req.body;
+        // Ahora esperamos recibir todas las variables criptográficas desde el frontend
+        var { nombre, correo, contraseña, publicKey, privateKey, cryptoIv, cryptoSalt } = req.body;
 
-        if (!nombre || !correo || !contraseña) {
-            return res.status(400).json({ error: "Todos los campos son obligatorios." });
+        if (!nombre || !correo || !contraseña || !publicKey || !privateKey || !cryptoIv || !cryptoSalt) {
+            return res.status(400).json({ error: "Faltan datos obligatorios o parámetros criptográficos." });
         }
 
         contraseña = await bcrypt.hash(contraseña, saltRounds);
 
-        const nuevoUsuario = new usuario({ nombre, correo, contraseña });
+        const nuevoUsuario = new usuario({ 
+            nombre, 
+            correo, 
+            contraseña,
+            publicKey, 
+            privateKey, 
+            cryptoIv, 
+            cryptoSalt 
+        });
+        
         await nuevoUsuario.save();
 
         res.status(201).json({ message: "Usuario registrado exitosamente." });
@@ -73,38 +81,46 @@ app.post("/registro", async (req, res) => {
     }
 });
 
+// ==========================================
+// LOGIN
+// ==========================================
 app.post("/login", async (req, res) => {
     try {
         const { user, password } = req.body;
-        console.log(user, password);
 
         const criterioBusqueda = { $or: [{ correo: user }, { nombre: user }] };
         const resultado = await usuario.findOne(criterioBusqueda);
-        console.log(resultado);
 
         if (!resultado) {
             return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
         }
 
         if (await bcrypt.compare(password, resultado.contraseña)) {
-
             if (listaUsuarios[resultado.nombre]) {
                 return res.status(401).json({ error: "Este usuario ya está conectado" });
             }
-
+            // ATENCIÓN: Si usas http://localhost, secure: true bloquea la cookie en algunos navegadores.
+            // Para desarrollo en local, es mejor dejarlo en false o condicionado a HTTPS.
             res.cookie('nombreUsuario', resultado.nombre, {
-                secure: true,
+                secure: process.env.NODE_ENV === 'production', // Solo true en producción (HTTPS)
                 sameSite: 'Strict',
             });
-
             req.session.usuario = resultado.nombre;
-            res.status(200).json({ message: "Inicio de sesión exitoso", usuario: resultado });
+            
+            // Devolvemos solo las variables necesarias, ocultando el hash de la contraseña
+            res.status(200).json({
+                message: "Inicio de sesión exitoso",
+                usuario: {
+                    nombre: resultado.nombre,
+                    publicKey: resultado.publicKey,
+                    privateKey: resultado.privateKey,
+                    cryptoIv: resultado.cryptoIv,
+                    cryptoSalt: resultado.cryptoSalt
+                }
+            });
 
         } else {
-            const existe = await usuario.findOne({ $or: [{ correo: user }, { nombre: user }] });
-            if (existe) {
-                res.status(401).json({ error: "Usuario o contraseña incorrectos" });
-            }
+            res.status(401).json({ error: "Usuario o contraseña incorrectos" });
         }
 
     } catch (error) {
@@ -113,13 +129,17 @@ app.post("/login", async (req, res) => {
     }
 });
 
-//Cerrar Sesión
+// ==========================================
+// CERRAR SESIÓN
+// ==========================================
 app.post('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) {
             console.log(err);
             return res.status(500).send('Error al cerrar sesión.');
         }
+        res.clearCookie('nombreUsuario');
+        res.clearCookie('connect.sid');
         res.send('Sesión cerrada exitosamente.');
     });
 });
@@ -136,62 +156,67 @@ function verificarAutenticacion(req, res, next) {
     }
 }
 
+// ==========================================
+// SOCKET.IO (Chat y Criptografía)
+// ==========================================
 let listaUsuarios = {};
 
 io.on('connection', (socket) => {
     console.log('Un cliente se ha conectado:', socket.id);
 
-    // 1. Asignar usuario guardando su clave pública
-    socket.on('asignarUsuario', (data) => {
-        listaUsuarios[data.nombre] = {
-            id: socket.id,
-            publicKey: data.publicKey
-        };
-        console.log(`Usuario asignado: ${data.nombre} (Clave recibida)`);
-        
-        io.emit('actualizar lista', Object.keys(listaUsuarios));
+    socket.on('asignarUsuario', async (data) => {
+        try {
+            const userDB = await usuario.findOne({ nombre: data.nombre });
+            
+            if (userDB) {
+                listaUsuarios[data.nombre] = {
+                    id: socket.id,
+                    publicKey: userDB.publicKey
+                };
+                console.log(`Usuario asignado: ${data.nombre} (Clave pública cargada de BD)`);
+                io.emit('actualizar lista', Object.keys(listaUsuarios));
+            }
+        } catch (err) {
+            console.error("Error al asignar usuario en Socket:", err);
+        }
     });
 
-    // 2. Evento para servir la clave pública de un usuario a otro
     socket.on('pedirClave', (nombreDestinatario, callback) => {
-        const usuario = listaUsuarios[nombreDestinatario];
-        
-        if (usuario && usuario.publicKey) {
-            callback({ success: true, publicKey: usuario.publicKey });
+        const usuarioActivo = listaUsuarios[nombreDestinatario];
+
+        if (usuarioActivo && usuarioActivo.publicKey) {
+            callback({ success: true, publicKey: usuarioActivo.publicKey });
         } else {
             callback({ success: false, error: "Usuario desconectado o sin clave pública." });
         }
     });
 
-    // 3. Escuchar mensajes públicos y difundirlos (Sin cifrar)
     socket.on('mensajePublico', (msg) => {
         io.emit('mensajePublico', msg);
     });
 
-    // 4. Reenviar Mensaje Privado (Cifrado E2EE)
     socket.on('mensajePrivado', (msg) => {
         const receptorData = listaUsuarios[msg.receptor];
-        
+
         if (receptorData) {
             socket.to(receptorData.id).emit('mensajePrivado', msg);
-            console.log(`Mensaje transferido de ${msg.emisor} a ${msg.receptor}. Mensaje encriptado: ${msg.mensaje}`);
+            console.log(`Mensaje transferido de ${msg.emisor} a ${msg.receptor}. Mensaje: ${msg.mensaje}`);
         } else {
             console.log(`Fallo al enviar: ${msg.receptor} no está conectado.`);
         }
     });
 
-    // 5. Desconexión de usuario
     socket.on('disconnect', () => {
         console.log('Un cliente se ha desconectado:', socket.id);
-        
+
         for (const nombre in listaUsuarios) {
             if (listaUsuarios[nombre].id === socket.id) {
                 delete listaUsuarios[nombre];
-                console.log(`Usuario eliminado: ${nombre}`);
+                console.log(`Usuario eliminado de lista activa: ${nombre}`);
                 break;
             }
         }
-        
+
         io.emit('actualizar lista', Object.keys(listaUsuarios));
     });
 });

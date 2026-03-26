@@ -1,25 +1,26 @@
+import {pedirClaveAlServidor, cifrarMensajePrivado, descifrarMensajePrivado} from './crypto-utils.js';
+
 // ========================
 // CONEXIÓN Y ELEMENTOS DOM
 // ========================
 const socket = io();
 
-const form            = document.getElementById('form');
-const input           = document.getElementById('input');
-const chatPublico     = document.getElementById('chat_publico');
-const listaUsuarios   = document.getElementById('usuariosConectados');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const chatPublico = document.getElementById('chat_publico');
+const listaUsuarios = document.getElementById('usuariosConectados');
 const ventanaPrincipal = document.getElementById('contenido-principal');
-const chatInput       = document.getElementById('chat-input');
-const encabezado      = document.getElementById('encabezado');
+const chatInput = document.getElementById('chat-input');
+const encabezado = document.getElementById('encabezado');
 const botonChatPublico = document.getElementById('volverChatPublico');
 
 let destinatario = null;
+let privateKey = null;
+let cryptoReady = false;
 
-// Variables globales para la criptografía
-let keys;
-let publicKey;
 
 // ========================
-// USUARIO ACTUAL Y CRIPTOGRAFÍA
+// USUARIO ACTUAL
 // ========================
 const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
     const [key, value] = cookie.split('=');
@@ -29,81 +30,96 @@ const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
 
 const nombreUsuario = cookies['nombreUsuario'] || '';
 
-async function inicializarCriptografia() {
-    try {
-        // Generar par de claves RSA-OAEP
-        keys = await window.crypto.subtle.generateKey(
-            { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-            true,
-            ["encrypt", "decrypt"]
-        );
-        
-        // Exportar la clave pública a JWK para enviarla al servidor
-        publicKey = await window.crypto.subtle.exportKey("jwk", keys.publicKey);
-        
-        // Asignar usuario enviando también la clave pública
-        socket.emit('asignarUsuario', { 
-            nombre: nombreUsuario, 
-            publicKey: publicKey 
-        });
-    } catch (e) {
-        console.error("Error al generar las claves criptográficas:", e);
-        alert("Tu navegador no soporta cifrado de extremo a extremo.");
-    }
-}
-
-if (nombreUsuario) {
-    inicializarCriptografia();
-}
 
 // ========================
-// UTILIDADES E2EE
+// INDEXEDDB
 // ========================
-
-// Convertir ArrayBuffer a Base64
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
-
-// Convertir Base64 a ArrayBuffer
-function base64ToArrayBuffer(base64) {
-    const binary_string = window.atob(base64);
-    const len = binary_string.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-// Pedir la clave pública de un usuario al servidor
-async function pedirClaveAlServidor(receptor) {
+function abrirDB() {
     return new Promise((resolve, reject) => {
-        socket.emit('pedirClave', receptor, async (respuesta) => {
-            if (respuesta.success) {
-                try {
-                    const cryptoKey = await window.crypto.subtle.importKey(
-                        "jwk",
-                        respuesta.publicKey,
-                        { name: "RSA-OAEP", hash: "SHA-256" },
-                        false, 
-                        ["encrypt"] 
-                    );
-                    resolve(cryptoKey);
-                } catch (e) {
-                    reject("Error importando la clave del destinatario: " + e);
-                }
-            } else {
-                reject(respuesta.error);
+        const request = indexedDB.open("CyberChatSeguridad", 1);
+
+        request.onupgradeneeded = function (event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains("claves")) {
+                db.createObjectStore("claves");
             }
-        });
+        };
+
+        request.onsuccess = function (event) {
+            resolve(event.target.result);
+        };
+
+        request.onerror = function () {
+            reject(request.error);
+        };
     });
 }
+
+async function obtenerClaveDeIndexedDB(nombreClave) {
+    const db = await abrirDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["claves"], "readonly");
+        const store = transaction.objectStore("claves");
+        const request = store.get(nombreClave);
+
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function eliminarClaveDeIndexedDB(nombreClave) {
+    const db = await abrirDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["claves"], "readwrite");
+        const store = transaction.objectStore("claves");
+        const request = store.delete(nombreClave);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+
+// ========================
+// SESIÓN CRIPTOGRÁFICA
+// ========================
+async function inicializarSesionCriptografica() {
+    try {
+        if (!nombreUsuario) {
+            window.location.href = '/';
+            return;
+        }
+
+        privateKey = await obtenerClaveDeIndexedDB("miClavePrivada");
+
+        if (!privateKey) {
+            throw new Error("No se encontró la clave privada en IndexedDB");
+        }
+
+        cryptoReady = true;
+        registrarUsuarioEnSocket();
+    } catch (e) {
+        console.error("Error cargando la clave privada:", e);
+        alert("No se pudo cargar tu identidad criptográfica. Inicia sesión de nuevo.");
+        window.location.href = '/';
+    }
+}
+
+function registrarUsuarioEnSocket() {
+    if (!socket.connected || !nombreUsuario) return;
+
+    socket.emit('asignarUsuario', {
+        nombre: nombreUsuario
+    });
+}
+
+socket.on('connect', () => {
+    if (cryptoReady) {
+        registrarUsuarioEnSocket();
+    }
+});
 
 // ========================
 // UTILIDADES UI
@@ -152,6 +168,7 @@ function asegurarVentanaPrivada(css) {
         <div id="mensajes-chat">
             <ul class="chat_privado ${css}"></ul>
         </div>`;
+
     ventanaPrincipal.insertBefore(ventana, chatInput);
 }
 
@@ -162,17 +179,18 @@ function scrollToBottom(css) {
     }
 }
 
+
 // ========================
 // INICIALIZACIÓN DOM
 // ========================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     form.addEventListener('submit', enviarMensajePublico);
     botonChatPublico.addEventListener('click', volverChatPublico);
 
     document.getElementById('nombre-usuario').innerText =
         nombreUsuario.charAt(0).toUpperCase() + nombreUsuario.slice(1);
 
-    const iconoMenu  = document.querySelector('.icono-tres-puntos');
+    const iconoMenu = document.querySelector('.icono-tres-puntos');
     const menuContent = document.querySelector('.menu-content');
 
     iconoMenu.addEventListener('click', (e) => {
@@ -185,28 +203,35 @@ document.addEventListener('DOMContentLoaded', () => {
         iconoMenu.classList.remove('active');
         document.querySelectorAll('.menu-content').forEach(m => m.style.display = 'none');
     });
+
+    await inicializarSesionCriptografica();
 });
+
 
 // ========================
 // LISTA DE USUARIOS
 // ========================
 socket.on('actualizar lista', (lista) => {
     listaUsuarios.innerHTML = '';
+
     lista.forEach(nombre => {
         if (nombre === nombreUsuario) return;
 
         const li = document.createElement('li');
         li.textContent = nombre;
+
         li.addEventListener('click', (e) => {
             e.preventDefault();
             cambiarChat(nombre);
         });
+
         listaUsuarios.appendChild(li);
     });
 });
 
+
 // ========================
-// CHAT PÚBLICO (No cifrado)
+// CHAT PÚBLICO
 // ========================
 function volverChatPublico() {
     Array.from(listaUsuarios.children).forEach(u => u.classList.remove('actual'));
@@ -235,13 +260,20 @@ socket.on('mensajePublico', (msg) => {
 
 function enviarMensajePublico(event) {
     event.preventDefault();
+
     if (!input.value.trim()) return;
-    socket.emit('mensajePublico', { emisor: nombreUsuario, mensaje: input.value });
+
+    socket.emit('mensajePublico', {
+        emisor: nombreUsuario,
+        mensaje: input.value
+    });
+
     input.value = '';
 }
 
+
 // ========================
-// CHAT PRIVADO (Cifrado E2EE)
+// CHAT PRIVADO
 // ========================
 function cambiarChat(nombre) {
     const css = toCSS(nombre);
@@ -278,22 +310,12 @@ socket.on('mensajePrivado', async (msg) => {
     let textoAMostrar = "";
 
     try {
-        // 1. Convertir y desencriptar
-        const bufferCifrado = base64ToArrayBuffer(msg.mensaje);
-        const bufferDescifrado = await window.crypto.subtle.decrypt(
-            { name: "RSA-OAEP" },
-            keys.privateKey,
-            bufferCifrado
-        );
-        
-        const decoder = new TextDecoder();
-        textoAMostrar = decoder.decode(bufferDescifrado);
+        textoAMostrar = await descifrarMensajePrivado(privateKey, msg);
     } catch (error) {
         console.error("No se pudo descifrar el mensaje:", error);
         textoAMostrar = "⚠️ [Mensaje cifrado ilegible]";
     }
 
-    // 2. Pintar mensaje en pantalla
     const chatPrivado = document.querySelector(`.chat_privado.${emisorCSS}`);
     chatPrivado.appendChild(crearMensaje(msg.emisor, textoAMostrar, 'recibido'));
 
@@ -314,46 +336,44 @@ socket.on('mensajePrivado', async (msg) => {
     }
 });
 
-// Encriptar y enviar mensaje
 async function enviarMensajePrivado(event) {
     event.preventDefault();
+
     if (!input.value.trim()) return;
+    if (!destinatario) return;
+    if (!cryptoReady) {
+        alert("Tu clave privada todavía no está cargada.");
+        return;
+    }
 
     const textoPlano = input.value;
     const destinatarioCSS = toCSS(destinatario);
-    
-    input.value = ''; 
+
+    input.value = '';
 
     try {
-        // 1. Obtener clave del receptor
-        const publicKeyReceptor = await pedirClaveAlServidor(destinatario);
-        
-        // 2. Cifrar
-        const encoder = new TextEncoder();
-        const dataCodificada = encoder.encode(textoPlano);
-        const mensajeCifradoBuffer = await window.crypto.subtle.encrypt(
-            { name: "RSA-OAEP" },
-            publicKeyReceptor, 
-            dataCodificada
-        );
-        
-        // 3. Enviar (pasando a base64 para que JSON.stringify no lo rompa)
-        socket.emit('mensajePrivado', { 
-            emisor: nombreUsuario, 
-            mensaje: arrayBufferToBase64(mensajeCifradoBuffer), 
-            receptor: destinatario 
+        const publicKeyReceptor = await pedirClaveAlServidor(socket, destinatario);
+
+        const payloadCifrado = await cifrarMensajePrivado(textoPlano, publicKeyReceptor);
+
+        socket.emit('mensajePrivado', {
+            emisor: nombreUsuario,
+            receptor: destinatario,
+            mensaje: payloadCifrado.mensaje,
+            wrappedKey: payloadCifrado.wrappedKey,
+            iv: payloadCifrado.iv
         });
 
-        // 4. Pintar tu propio mensaje en tu pantalla (tú lo ves en claro, no cifrado)
         const chatPrivado = document.querySelector(`.chat_privado.${destinatarioCSS}`);
         chatPrivado.appendChild(crearMensaje(nombreUsuario, textoPlano, 'enviado', 'Tú'));
         scrollToBottom(destinatarioCSS);
 
     } catch (error) {
         console.error("No se pudo enviar el mensaje cifrado:", error);
-        alert(`No se pudo cifrar el mensaje para ${destinatario}. El usuario no existe o no tiene clave asignada.`);
+        alert(`No se pudo cifrar el mensaje para ${destinatario}.`);
     }
 }
+
 
 // ========================
 // CERRAR SESIÓN
@@ -361,13 +381,29 @@ async function enviarMensajePrivado(event) {
 async function cerrarSesion(event) {
     event.preventDefault();
     const modal = document.getElementById('loadingModal');
+
     try {
-        const response = await fetch('/logout', { method: 'POST', credentials: 'include' });
         modal.style.display = 'flex';
 
-        if (!response.ok) throw new Error('Error al cerrar sesión');
+        try {
+            await eliminarClaveDeIndexedDB("miClavePrivada");
+        } catch (e) {
+            console.warn("No se pudo borrar la clave local:", e);
+        }
 
-        setTimeout(() => { window.location.href = '/'; }, 3000);
+        const response = await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al cerrar sesión');
+        }
+
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1500);
+
     } catch (error) {
         console.error('Error al cerrar sesión:', error);
         modal.style.display = 'none';
