@@ -207,7 +207,6 @@ a:hover {
    MENSAJES DE ERROR / INFO
 ======================== */
 p {
-    text-align: center;
     color: var(--neon-magenta);
     text-shadow: var(--glow-magenta);
     font-size: 0.75rem;
@@ -215,6 +214,7 @@ p {
     padding: 0;
     margin-top: 2px;
     margin-bottom: 8px;
+    white-space: nowrap; 
 }
 
 .chorrada {
@@ -223,8 +223,6 @@ p {
     letter-spacing: 1px;
     margin-top: 2px;
     margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
 }
 
 /* ========================

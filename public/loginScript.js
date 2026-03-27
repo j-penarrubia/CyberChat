@@ -5,9 +5,10 @@ document.getElementById("formularioLogin").addEventListener("submit", async func
 
     const usuario = document.getElementById("user").value;
     const contraseña = document.getElementById("password").value;
-    document.querySelectorAll('p').forEach(function (parrafo) {
-        parrafo.remove();
-    });
+    const pErrorAnterior = document.getElementById('pError');
+    if (pErrorAnterior) {
+        pErrorAnterior.remove();
+    }
 
     await logearUsuario(usuario, contraseña);
 });
@@ -35,7 +36,7 @@ async function logearUsuario(user, password) {
             const data = await response.json();
             console.log(data.usuario);
             
-            // --- INICIO MAGIA CRIPTOGRÁFICA ---
+            // --- CRIPTOGRAFÍA ---
             try {
                 // 1. Convertir Base64 a Buffers
                 const ivBuffer = base64ToBuffer(data.usuario.cryptoIv);
@@ -57,7 +58,7 @@ async function logearUsuario(user, password) {
                 );
 
                 // 4. Guardar de forma segura en IndexedDB
-                await guardarClaveEnIndexedDB("miClavePrivada", privateKey);
+                await guardarClaveEnIndexedDB("PK", privateKey);
                 
                 // Redirigir al chat
                 window.location.href = '/chat';
@@ -66,7 +67,6 @@ async function logearUsuario(user, password) {
                 modal.style.display = 'none';
                 mostrarError("Error crítico de seguridad al cargar tus claves.");
             }
-            // --- FIN MAGIA CRIPTOGRÁFICA ---
 
         } else {
             const error = await response.json();
@@ -102,4 +102,18 @@ function guardarClaveEnIndexedDB(nombreClave, claveObj) {
 
         request.onerror = () => reject(request.error);
     });
+}
+
+function mostrarError(mensaje) {
+    let pError = document.getElementById('pError');
+    if (!pError) {
+        pError = document.createElement('p');
+        pError.id = 'pError';
+        pError.className = 'mensaje-error';
+        document.getElementById('formularioLogin').appendChild(pError);
+    }
+    
+    // Mostrar el mensaje
+    pError.textContent = mensaje;
+    pError.style.display = 'block';
 }

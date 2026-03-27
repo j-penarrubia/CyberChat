@@ -30,7 +30,6 @@ const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
 
 const nombreUsuario = cookies['nombreUsuario'] || '';
 
-
 // ========================
 // INDEXEDDB
 // ========================
@@ -92,7 +91,7 @@ async function inicializarSesionCriptografica() {
             return;
         }
 
-        privateKey = await obtenerClaveDeIndexedDB("miClavePrivada");
+        privateKey = await obtenerClaveDeIndexedDB("PK");
 
         if (!privateKey) {
             throw new Error("No se encontró la clave privada en IndexedDB");
@@ -386,7 +385,7 @@ async function cerrarSesion(event) {
         modal.style.display = 'flex';
 
         try {
-            await eliminarClaveDeIndexedDB("miClavePrivada");
+            await eliminarClaveDeIndexedDB("PK");
         } catch (e) {
             console.warn("No se pudo borrar la clave local:", e);
         }
@@ -409,3 +408,4 @@ async function cerrarSesion(event) {
         modal.style.display = 'none';
     }
 }
+window.cerrarSesion = cerrarSesion;

@@ -5,14 +5,15 @@ const conexionDB = require("./database");
 const { usuario } = require("./models");
 const path = require("path");
 const session = require('express-session');
+const { default: MongoStore } = require('connect-mongo');
 require('dotenv').config();
 
-// Importaciones para encriptar y desencriptar contraseñas
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
 const app = express();
 const mongoSanitize = require('express-mongo-sanitize');
+
 app.use(express.json());
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
@@ -24,8 +25,14 @@ app.use(session({
     secret: process.env.SECRET || 'secreto_desarrollo',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URI_ENV,
+        collectionName: 'session'
+    }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict'
     }
 }));
 
@@ -58,16 +65,16 @@ app.post("/registro", async (req, res) => {
 
         contraseña = await bcrypt.hash(contraseña, saltRounds);
 
-        const nuevoUsuario = new usuario({ 
-            nombre, 
-            correo, 
+        const nuevoUsuario = new usuario({
+            nombre,
+            correo,
             contraseña,
-            publicKey, 
-            privateKey, 
-            cryptoIv, 
-            cryptoSalt 
+            publicKey,
+            privateKey,
+            cryptoIv,
+            cryptoSalt
         });
-        
+
         await nuevoUsuario.save();
 
         res.status(201).json({ message: "Usuario registrado exitosamente." });
@@ -99,25 +106,31 @@ app.post("/login", async (req, res) => {
             if (listaUsuarios[resultado.nombre]) {
                 return res.status(401).json({ error: "Este usuario ya está conectado" });
             }
-            // ATENCIÓN: Si usas http://localhost, secure: true bloquea la cookie en algunos navegadores.
-            // Para desarrollo en local, es mejor dejarlo en false o condicionado a HTTPS.
+
             res.cookie('nombreUsuario', resultado.nombre, {
-                secure: process.env.NODE_ENV === 'production', // Solo true en producción (HTTPS)
+                secure: process.env.NODE_ENV === 'production',
                 sameSite: 'Strict',
             });
+
             req.session.usuario = resultado.nombre;
             
-            // Devolvemos solo las variables necesarias, ocultando el hash de la contraseña
-            res.status(200).json({
-                message: "Inicio de sesión exitoso",
-                usuario: {
-                    nombre: resultado.nombre,
-                    publicKey: resultado.publicKey,
-                    privateKey: resultado.privateKey,
-                    cryptoIv: resultado.cryptoIv,
-                    cryptoSalt: resultado.cryptoSalt
+            req.session.save((err) => {
+                if (err) {
+                    console.error("Error al guardar la sesión en Mongo:", err);
+                    return res.status(500).json({ error: "Error interno guardando sesión" });
                 }
-            });
+
+                res.status(200).json({
+                    message: "Inicio de sesión exitoso",
+                    usuario: {
+                        nombre: resultado.nombre,
+                        publicKey: resultado.publicKey,
+                        privateKey: resultado.privateKey,
+                        cryptoIv: resultado.cryptoIv,
+                        cryptoSalt: resultado.cryptoSalt
+                    }
+                });
+            }); 
 
         } else {
             res.status(401).json({ error: "Usuario o contraseña incorrectos" });
@@ -167,7 +180,7 @@ io.on('connection', (socket) => {
     socket.on('asignarUsuario', async (data) => {
         try {
             const userDB = await usuario.findOne({ nombre: data.nombre });
-            
+
             if (userDB) {
                 listaUsuarios[data.nombre] = {
                     id: socket.id,
