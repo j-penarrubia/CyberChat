@@ -23,15 +23,15 @@ const io = new Server(server);
 app.set('trust proxy', 1);
 app.use(session({
     secret: process.env.SECRET || 'secreto_desarrollo',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: process.env.MONGO_URI_ENV,
         collectionName: 'session'
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
-        secure: true,//process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'Strict'
     }
 }));
