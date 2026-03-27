@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(mongoSanitize());
 const server = http.createServer(app);
 const io = new Server(server);
-
+app.set('trust proxy', 1);
 app.use(session({
     secret: process.env.SECRET || 'secreto_desarrollo',
     resave: true,
@@ -31,7 +31,7 @@ app.use(session({
     }),
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
-        secure: false,//process.env.NODE_ENV === 'production',
+        secure: true,//process.env.NODE_ENV === 'production',
         sameSite: 'Strict'
     }
 }));
