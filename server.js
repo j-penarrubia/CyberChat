@@ -23,8 +23,8 @@ const io = new Server(server);
 
 app.use(session({
     secret: process.env.SECRET || 'secreto_desarrollo',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: MongoStore.create({
         mongoUrl: process.env.MONGO_URI_ENV,
         collectionName: 'session'
@@ -32,7 +32,7 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
         secure: false,//process.env.NODE_ENV === 'production',
-        sameSite: 'Strict'
+        sameSite: 'Lax'
     }
 }));
 
@@ -148,15 +148,18 @@ app.post("/login", async (req, res) => {
 app.post('/logout', (req, res) => {
     req.session.destroy(err => {
         if (err) {
-            console.log(err);
-            return res.status(500).send('Error al cerrar sesión.');
+            console.log("Aviso al cerrar sesión:", err);
         }
-        res.clearCookie('nombreUsuario');
+        
         res.clearCookie('connect.sid');
-        res.send('Sesión cerrada exitosamente.');
+        return res.status(200).send('Sesión cerrada exitosamente.');
     });
 });
 
+
+// ==========================================
+// VERIFICAR AUTENTICACIÓN
+// ==========================================
 app.get('/chat', verificarAutenticacion, (req, res) => {
     res.sendFile(path.join(__dirname, "/public/chat.html"));
 });
