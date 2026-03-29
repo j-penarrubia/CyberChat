@@ -34,8 +34,6 @@ async function logearUsuario(user, password) {
 
         if (response.ok) {
             const data = await response.json();
-            console.log(data.usuario);
-            
             // --- CRIPTOGRAFÍA ---
             try {
                 // 1. Convertir Base64 a Buffers
@@ -63,7 +61,6 @@ async function logearUsuario(user, password) {
                 // Redirigir al chat
                 window.location.href = '/chat';
             } catch (cryptoError) {
-                console.error("Error al descifrar la clave. ¿Han manipulado los datos?:", cryptoError);
                 modal.style.display = 'none';
                 mostrarError("Error crítico de seguridad al cargar tus claves.");
             }
